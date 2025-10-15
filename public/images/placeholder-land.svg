@@ -1,0 +1,17 @@
+<!-- This is a placeholder for a land plot image -->
+<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
+      <path d="M 50 0 L 0 0 0 50" fill="none" stroke="#ccc" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="800" height="600" fill="#e8f5e8"/>
+  <rect width="800" height="600" fill="url(#grid)"/>
+  <rect x="200" y="150" width="400" height="300" fill="#4CAF50" fill-opacity="0.7" stroke="#2E7D32" stroke-width="3"/>
+  <text x="400" y="300" font-family="Arial, sans-serif" font-size="24" fill="#1B5E20" text-anchor="middle">
+    Sample Land Plot
+  </text>
+  <text x="400" y="330" font-family="Arial, sans-serif" font-size="16" fill="#1B5E20" text-anchor="middle">
+    2.5 Acres
+  </text>
+</svg>

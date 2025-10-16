@@ -59,23 +59,14 @@ const AdminDashboard: React.FC = () => {
   const [actionComments, setActionComments] = useState('');
 
   useEffect(() => {
-    console.log('AdminDashboard: Component mounted, starting initial fetch...');
     fetchRequests();
     fetchStats();
     
     // Poll for new requests every 10 seconds
-    console.log('AdminDashboard: Setting up polling intervals...');
-    const requestsInterval = setInterval(() => {
-      console.log('AdminDashboard: Polling interval triggered for requests');
-      fetchRequests();
-    }, 10000);
-    const statsInterval = setInterval(() => {
-      console.log('AdminDashboard: Polling interval triggered for stats');
-      fetchStats();
-    }, 30000);
+    const requestsInterval = setInterval(fetchRequests, 10000);
+    const statsInterval = setInterval(fetchStats, 30000);
     
     return () => {
-      console.log('AdminDashboard: Cleaning up intervals...');
       clearInterval(requestsInterval);
       clearInterval(statsInterval);
     };
@@ -83,28 +74,17 @@ const AdminDashboard: React.FC = () => {
 
   const fetchRequests = async () => {
     try {
-      console.log('AdminDashboard: Starting fetchRequests...');
+      console.log('AdminDashboard: Fetching requests...');
       const response = await fetch('/api/admin/requests');
-      console.log('AdminDashboard: Response status:', response.status);
-      
-      if (!response.ok) {
-        console.error('AdminDashboard: Response not ok:', response.status, response.statusText);
-        return;
-      }
-      
       const data = await response.json();
-      console.log('AdminDashboard: Full response data:', data);
+      console.log('AdminDashboard: Requests response:', data);
       
       if (data.success) {
-        console.log('AdminDashboard: Setting requests, count:', data.data.length);
-        console.log('AdminDashboard: Request details:', data.data.map((r: any) => ({ id: r.id, userEmail: r.userEmail, fileName: r.fileName })));
         setRequests(data.data);
-        console.log('AdminDashboard: Requests state updated successfully');
-      } else {
-        console.error('AdminDashboard: API returned success=false:', data);
+        console.log('AdminDashboard: Updated requests count:', data.data.length);
       }
     } catch (error) {
-      console.error('AdminDashboard: Fetch error:', error);
+      console.error('Failed to fetch requests:', error);
     } finally {
       setIsLoading(false);
     }
@@ -199,57 +179,6 @@ const AdminDashboard: React.FC = () => {
               Manage encroachment requests and system monitoring
             </Typography>
           </Box>
-        </Box>
-
-        {/* Debug Controls */}
-        <Box sx={{ mb: 3, p: 2, bgcolor: 'background.paper', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={async () => {
-              console.log('=== MANUAL DEBUG TRIGGER ===');
-              try {
-                const debugResponse = await fetch('/api/debug/stores');
-                const debugData = await debugResponse.json();
-                console.log('Debug stores data:', debugData);
-                
-                // Test database connection
-                const dbTestResponse = await fetch('/api/test-db');
-                const dbTestData = await dbTestResponse.json();
-                console.log('Database test:', dbTestData);
-                
-                // Also manually trigger fetch
-                console.log('Manually triggering fetchRequests...');
-                await fetchRequests();
-                console.log('Manual fetchRequests completed');
-              } catch (error) {
-                console.error('Debug trigger error:', error);
-              }
-            }}
-            sx={{ mr: 2 }}
-          >
-            Debug System & Test DB
-          </Button>
-          <Button
-            variant="outlined"
-            size="small"
-            color="secondary"
-            onClick={async () => {
-              try {
-                const response = await fetch('/api/test-db');
-                const data = await response.json();
-                alert(`Database Status: ${data.database}\nMessage: ${data.message}`);
-              } catch (error) {
-                alert('Failed to test database connection');
-              }
-            }}
-            sx={{ mr: 2 }}
-          >
-            Test Database
-          </Button>
-          <Typography variant="caption" color="text.secondary">
-            Current requests in state: {requests.length} | Check browser console for detailed debug info
-          </Typography>
         </Box>
 
         {/* Statistics Cards */}

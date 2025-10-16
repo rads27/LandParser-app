@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import supabaseEncroachmentStore from '@/lib/supabaseStore';
-import supabaseNotificationStore from '@/lib/supabaseNotificationStore';
-import fallbackStorage from '@/lib/fallbackStorage';
+import encroachmentStore from '@/lib/encroachmentStore';
+import notificationStore from '@/lib/notificationStore';
 import jwt from 'jsonwebtoken';
 
 // Helper function to get user from token
@@ -56,57 +55,22 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(bytes);
     const fileData = buffer.toString('base64');
 
-    // Store the submission in database with fallback to in-memory storage
-    console.log('Encroachment API: About to store submission...');
-    let submission;
-    let usingFallback = false;
-    
-    try {
-      submission = await supabaseEncroachmentStore.addSubmission({
-        userEmail,
-        fileName: file.name,
-        fileData,
-        fileType: file.type,
-        status: 'pending',
-        complaintDetails,
-      });
-      console.log('Encroachment API: New submission created in Supabase:', { id: submission.id, userEmail, fileName: file.name });
-    } catch (dbError) {
-      console.error('Encroachment API: Supabase error, falling back to in-memory storage:', dbError);
-      usingFallback = true;
-      
-      try {
-        submission = await fallbackStorage.addSubmission({
-          userEmail,
-          fileName: file.name,
-          fileData,
-          fileType: file.type,
-          status: 'pending',
-          complaintDetails,
-        });
-        console.log('Encroachment API: New submission created in fallback storage:', { id: submission.id, userEmail, fileName: file.name });
-      } catch (fallbackError) {
-        console.error('Encroachment API: Both database and fallback failed:', fallbackError);
-        return NextResponse.json(
-          { error: 'Storage system failed. Please try again later.' },
-          { status: 500 }
-        );
-      }
-    }
+    // Store the submission
+    const submission = encroachmentStore.addSubmission({
+      userEmail,
+      fileName: file.name,
+      fileData,
+      fileType: file.type,
+      status: 'pending',
+      complaintDetails,
+    });
+
+    console.log('Encroachment API: New submission created:', { id: submission.id, userEmail, fileName: file.name, status: submission.status });
+    console.log('Encroachment API: Total submissions now:', encroachmentStore.getAllSubmissions().length);
 
     // Add notification for admin
-    try {
-      if (usingFallback) {
-        await fallbackStorage.addSubmissionNotification(userEmail, file.name);
-        console.log('Encroachment API: Notification added to fallback storage');
-      } else {
-        await supabaseNotificationStore.addSubmissionNotification(userEmail, file.name);
-        console.log('Encroachment API: Notification added to Supabase');
-      }
-    } catch (notifError) {
-      console.error('Encroachment API: Notification error:', notifError);
-      // Don't fail the request if notification fails
-    }
+    notificationStore.addSubmissionNotification(userEmail, file.name);
+    console.log('Encroachment API: Notification added for admin');
 
     return NextResponse.json({
       success: true,
@@ -134,26 +98,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    let submissions;
-    try {
-      submissions = await supabaseEncroachmentStore.getUserSubmissions(userEmail);
-    } catch (error) {
-      console.log('Encroachment API GET: Supabase failed, using fallback storage');
-      submissions = await fallbackStorage.getUserSubmissions(userEmail);
-    }
+    const submissions = encroachmentStore.getUserSubmissions(userEmail);
     
-    // Format submissions for frontend with full details
-    const formattedSubmissions = submissions.map((sub: any) => ({
+    // Format submissions for frontend
+    const formattedSubmissions = submissions.map(sub => ({
       id: sub.id,
       fileName: sub.fileName,
       status: sub.status === 'approved' ? 'Approved' : 
               sub.status === 'rejected' ? 'Rejected' : 'Pending',
       submittedAt: sub.submittedAt,
-      processedAt: sub.processedAt,
-      adminNotes: sub.adminNotes,
-      complaintDetails: sub.complaintDetails,
-      fileData: sub.fileData,
-      fileType: sub.fileType
+      processedAt: sub.processedAt
     }));
 
     return NextResponse.json({

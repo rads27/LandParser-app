@@ -54,45 +54,19 @@ const UserDashboard: React.FC = () => {
   // Fetch real-time dashboard statistics
   const fetchDashboardStats = async () => {
     try {
-      if (!user?.email) {
-        console.log('UserDashboard: No user email available');
-        return;
-      }
-
-      console.log('UserDashboard: Fetching user stats for:', user.email);
-      const response = await fetch(`/api/user/stats?userEmail=${encodeURIComponent(user.email)}`);
-      console.log('UserDashboard: Response status:', response.status);
-      
+      const response = await fetch('/api/admin/stats');
       if (response.ok) {
         const result = await response.json();
-        console.log('UserDashboard: Stats response:', result);
-        
-        if (result.success && result.data) {
-          const stats = result.data;
-          setDashboardStats({
-            totalSubmissions: stats.totalSubmissions || 0,
-            totalValue: stats.estimatedValue || 240000000,
-            pendingReviews: stats.pendingCount || 0,
-            accuracyRate: stats.approvalRate || 95
-          });
-          console.log('UserDashboard: Stats updated successfully');
-        } else {
-          console.error('UserDashboard: Invalid response structure:', result);
-        }
-      } else {
-        console.error('UserDashboard: Response not ok:', response.status, response.statusText);
-        const errorText = await response.text();
-        console.error('UserDashboard: Error response:', errorText);
+        const stats = result.data;
+        setDashboardStats({
+          totalSubmissions: stats.totalThisMonth,
+          totalValue: 240000000, // 2.4Cr fallback (could be calculated based on submissions)
+          pendingReviews: stats.pending,
+          accuracyRate: stats.accuracyRate
+        });
       }
     } catch (error) {
-      console.error('UserDashboard: Fetch error:', error);
-      // Set fallback values when API fails
-      setDashboardStats({
-        totalSubmissions: 0,
-        totalValue: 240000000,
-        pendingReviews: 0,
-        accuracyRate: 95
-      });
+      console.error('Error fetching dashboard stats:', error);
     }
   };
 
@@ -149,7 +123,7 @@ const UserDashboard: React.FC = () => {
                           {dashboardStats.totalSubmissions}
                         </Typography>
                         <Typography variant="body2">
-                          My Submissions
+                          Total Submissions
                         </Typography>
                       </Box>
                       <LocationOn sx={{ fontSize: 40, opacity: 0.8 }} />
@@ -183,7 +157,7 @@ const UserDashboard: React.FC = () => {
                           {dashboardStats.pendingReviews}
                         </Typography>
                         <Typography variant="body2">
-                          My Pending Reviews
+                          Pending Reviews
                         </Typography>
                       </Box>
                       <Security sx={{ fontSize: 40, opacity: 0.8 }} />
@@ -200,7 +174,7 @@ const UserDashboard: React.FC = () => {
                           {dashboardStats.accuracyRate}%
                         </Typography>
                         <Typography variant="body2">
-                          My Approval Rate
+                          Accuracy Rate
                         </Typography>
                       </Box>
                       <Analytics sx={{ fontSize: 40, opacity: 0.8 }} />

@@ -42,8 +42,6 @@ const EncroachmentDetection: React.FC = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
-  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
-  const [selectedSubmission, setSelectedSubmission] = useState<SubmissionHistory | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissions, setSubmissions] = useState<SubmissionHistory[]>([]);
   const [submitSuccess, setSubmitSuccess] = useState('');
@@ -144,11 +142,6 @@ const EncroachmentDetection: React.FC = () => {
   const handleConfirmSubmit = () => {
     setConfirmDialogOpen(false);
     handleSubmitForReview();
-  };
-
-  const handleViewDetails = (submission: SubmissionHistory) => {
-    setSelectedSubmission(submission);
-    setDetailsDialogOpen(true);
   };
 
   const handleSubmitForReview = async () => {
@@ -513,7 +506,6 @@ const EncroachmentDetection: React.FC = () => {
                       <TableRow>
                         <TableCell>File Name</TableCell>
                         <TableCell>Status</TableCell>
-                        <TableCell>Submitted</TableCell>
                         <TableCell align="center">Action</TableCell>
                       </TableRow>
                     </TableHead>
@@ -536,17 +528,11 @@ const EncroachmentDetection: React.FC = () => {
                               />
                             </Box>
                           </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" color="text.secondary">
-                              {new Date(submission.submittedAt).toLocaleString()}
-                            </Typography>
-                          </TableCell>
                           <TableCell align="center">
                             <Button
                               size="small"
                               variant="outlined"
-                              onClick={() => handleViewDetails(submission)}
-                              startIcon={<Visibility />}
+                              disabled={submission.status.toLowerCase() === 'pending'}
                             >
                               View Details
                             </Button>
@@ -634,195 +620,6 @@ const EncroachmentDetection: React.FC = () => {
             Yes, Submit
           </Button>
         </DialogActions>
-      </Dialog>
-
-      {/* Submission Details Dialog */}
-      <Dialog
-        open={detailsDialogOpen}
-        onClose={() => setDetailsDialogOpen(false)}
-        maxWidth="lg"
-        fullWidth
-      >
-        <DialogTitle>
-          Submission Details
-          <IconButton
-            onClick={() => setDetailsDialogOpen(false)}
-            sx={{ position: 'absolute', right: 8, top: 8 }}
-          >
-            <Close />
-          </IconButton>
-        </DialogTitle>
-        <DialogContent>
-          {selectedSubmission && (
-            <Grid container spacing={3}>
-              {/* Submitted Image */}
-              <Grid item xs={12} md={6}>
-                <Box sx={{ textAlign: 'center' }}>
-                  <Typography variant="h6" gutterBottom>
-                    Submitted Image
-                  </Typography>
-                  {selectedSubmission.fileData && selectedSubmission.fileType ? (
-                    <img
-                      src={`data:${selectedSubmission.fileType};base64,${selectedSubmission.fileData}`}
-                      alt="Submitted"
-                      style={{
-                        maxWidth: '100%',
-                        maxHeight: '400px',
-                        objectFit: 'contain',
-                        border: '1px solid #ddd',
-                        borderRadius: '8px'
-                      }}
-                    />
-                  ) : (
-                    <Box
-                      sx={{
-                        height: 200,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        bgcolor: 'grey.100',
-                        borderRadius: 1
-                      }}
-                    >
-                      <Typography color="text.secondary">Image not available</Typography>
-                    </Box>
-                  )}
-                </Box>
-              </Grid>
-
-              {/* Submission Information */}
-              <Grid item xs={12} md={6}>
-                <Typography variant="h6" gutterBottom>
-                  Submission Status
-                </Typography>
-                <Table size="small">
-                  <TableBody>
-                    <TableRow>
-                      <TableCell><strong>File Name:</strong></TableCell>
-                      <TableCell>{selectedSubmission.fileName}</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell><strong>Status:</strong></TableCell>
-                      <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          {getStatusIcon(selectedSubmission.status)}
-                          <Chip
-                            label={selectedSubmission.status}
-                            size="small"
-                            color={getStatusColor(selectedSubmission.status)}
-                          />
-                        </Box>
-                      </TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell><strong>Submitted:</strong></TableCell>
-                      <TableCell>{new Date(selectedSubmission.submittedAt).toLocaleString()}</TableCell>
-                    </TableRow>
-                    {selectedSubmission.processedAt && (
-                      <TableRow>
-                        <TableCell><strong>Processed:</strong></TableCell>
-                        <TableCell>{new Date(selectedSubmission.processedAt).toLocaleString()}</TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-
-                {/* Admin Feedback */}
-                {selectedSubmission.adminNotes && (
-                  <>
-                    <Divider sx={{ my: 2 }} />
-                    <Typography variant="h6" gutterBottom>
-                      Admin Feedback
-                    </Typography>
-                    <Paper sx={{ p: 2, bgcolor: 'background.paper' }}>
-                      <Typography variant="body2" style={{ whiteSpace: 'pre-wrap' }}>
-                        {selectedSubmission.adminNotes}
-                      </Typography>
-                    </Paper>
-                  </>
-                )}
-
-                {/* Your Submitted Details */}
-                {selectedSubmission.complaintDetails && (
-                  <>
-                    <Divider sx={{ my: 2 }} />
-                    <Typography variant="h6" gutterBottom>
-                      Your Submitted Details
-                    </Typography>
-                    <Table size="small">
-                      <TableBody>
-                        {selectedSubmission.complaintDetails.areaName && (
-                          <TableRow>
-                            <TableCell><strong>Area Name:</strong></TableCell>
-                            <TableCell>{selectedSubmission.complaintDetails.areaName}</TableCell>
-                          </TableRow>
-                        )}
-                        {selectedSubmission.complaintDetails.plotName && (
-                          <TableRow>
-                            <TableCell><strong>Plot Name:</strong></TableCell>
-                            <TableCell>{selectedSubmission.complaintDetails.plotName}</TableCell>
-                          </TableRow>
-                        )}
-                        {selectedSubmission.complaintDetails.plotNumber && (
-                          <TableRow>
-                            <TableCell><strong>Plot Number:</strong></TableCell>
-                            <TableCell>{selectedSubmission.complaintDetails.plotNumber}</TableCell>
-                          </TableRow>
-                        )}
-                        {selectedSubmission.complaintDetails.propertyType && (
-                          <TableRow>
-                            <TableCell><strong>Property Type:</strong></TableCell>
-                            <TableCell>{selectedSubmission.complaintDetails.propertyType}</TableCell>
-                          </TableRow>
-                        )}
-                        {selectedSubmission.complaintDetails.estimatedArea && (
-                          <TableRow>
-                            <TableCell><strong>Estimated Area:</strong></TableCell>
-                            <TableCell>{selectedSubmission.complaintDetails.estimatedArea}</TableCell>
-                          </TableRow>
-                        )}
-                        {(selectedSubmission.complaintDetails.latitude || selectedSubmission.complaintDetails.longitude) && (
-                          <TableRow>
-                            <TableCell><strong>GPS Coordinates:</strong></TableCell>
-                            <TableCell>
-                              {selectedSubmission.complaintDetails.latitude}, {selectedSubmission.complaintDetails.longitude}
-                            </TableCell>
-                          </TableRow>
-                        )}
-                        {selectedSubmission.complaintDetails.contactName && (
-                          <TableRow>
-                            <TableCell><strong>Contact Name:</strong></TableCell>
-                            <TableCell>{selectedSubmission.complaintDetails.contactName}</TableCell>
-                          </TableRow>
-                        )}
-                        {selectedSubmission.complaintDetails.contactPhone && (
-                          <TableRow>
-                            <TableCell><strong>Contact Phone:</strong></TableCell>
-                            <TableCell>{selectedSubmission.complaintDetails.contactPhone}</TableCell>
-                          </TableRow>
-                        )}
-                        {selectedSubmission.complaintDetails.address && (
-                          <TableRow>
-                            <TableCell><strong>Address:</strong></TableCell>
-                            <TableCell>{selectedSubmission.complaintDetails.address}</TableCell>
-                          </TableRow>
-                        )}
-                        {selectedSubmission.complaintDetails.comments && (
-                          <TableRow>
-                            <TableCell><strong>Comments:</strong></TableCell>
-                            <TableCell style={{ whiteSpace: 'pre-wrap' }}>
-                              {selectedSubmission.complaintDetails.comments}
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
-                  </>
-                )}
-              </Grid>
-            </Grid>
-          )}
-        </DialogContent>
       </Dialog>
     </Box>
   );

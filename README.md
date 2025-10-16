@@ -1,42 +1,53 @@
-# LandParser App 🏞️
+# LandParser App
 
-A comprehensive web application for reporting and managing land encroachment issues with real-time updates, admin management capabilities, and persistent database storage.
+A comprehensive land management and analysis application built with Next.js, React 22, TypeScript, and Material-UI with PostgreSQL backend.
 
-## 🚀 Features
+## 🌟 Features
 
-### User Features
-- **User Authentication** - Secure login/register system with JWT tokens
-- **Encroachment Reporting** - Submit land encroachment reports with images
-- **Image Preview** - Confirm image uploads before submission
-- **Detailed Forms** - Include area name, plot name, comments, and coordinates
-- **Real-time Updates** - Automatic polling for submission status updates
-- **User Dashboard** - Track all submitted reports and their statuses
-- **Submission Stats** - View pending, approved, and rejected submission counts
-- **Admin Feedback** - View admin comments on rejected submissions
+### 🔐 Authentication System
+- Role-based authentication (User/Admin)
+- Secure login with JWT tokens
+- Protected routes based on user roles
 
-### Admin Features
-- **Admin Dashboard** - View all pending, approved, and rejected submissions
-- **Full Details View** - See complete submission information including images
-- **Approval Workflow** - Approve or reject submissions with confirmation dialogs
-- **Admin Feedback** - Add comments when rejecting submissions
-- **Real-time Notifications** - Automatic updates when new submissions arrive
-- **Submission Statistics** - Overview of all submission statuses
+### 🗺️ User Dashboard
+1. **Automated Boundary Segmentation**
+   - Input land details (State, City, Taluka, Plot No.)
+   - Generate boundary maps with highlighted plots
+   - Display land information (Price, Owner, Type, Soil, Area)
 
-### UI/UX Features
-- **Dark Mode** - Toggle between light and dark themes
-- **Responsive Design** - Works seamlessly on desktop, tablet, and mobile
-- **Material-UI Components** - Modern and polished user interface
-- **Sidebar Navigation** - Easy access to all app sections
-- **Notification System** - Real-time alerts for important events
+2. **Land Price & Ownership Information**
+   - Predicted land prices
+   - Owner details
+   - Land and soil type classification
+   - Area calculations
 
-## �️ Tech Stack
+3. **Encroachment Detection**
+   - Image upload for land analysis
+   - Submission tracking system
+   - Status monitoring (Pending/Approved/Rejected)
 
-- **Frontend**: Next.js 15, React 19, TypeScript
-- **UI Framework**: Material-UI (MUI) v5
-- **Database**: Supabase (PostgreSQL) with automatic fallback storage
-- **Authentication**: JWT-based auth system
+### 👨‍💼 Admin Dashboard
+- Manage encroachment requests
+- Approve/Reject submissions
+- View uploaded images
+- User management interface
+
+### 🎨 UI/UX Features
+- Light/Dark theme toggle
+- Responsive design
+- Professional Material-UI components
+- Attractive gradients and animations
+- Custom styling and branding
+
+## 🚀 Tech Stack
+
+- **Frontend**: Next.js 15, React 22, TypeScript
+- **UI Library**: Material-UI (MUI) v5
+- **Styling**: Tailwind CSS + Custom CSS
+- **Backend**: Next.js API Routes
+- **Database**: PostgreSQL
+- **Authentication**: JWT + bcrypt
 - **State Management**: React Context API
-- **Styling**: Emotion CSS-in-JS
 
 ## 📦 Installation
 
@@ -51,27 +62,13 @@ A comprehensive web application for reporting and managing land encroachment iss
    npm install
    ```
 
-3. **Set Up Environment Variables**
+3. **Set up PostgreSQL database**
+   - Create a database named `landparser_db`
+   - Run the SQL schema from `database/schema.sql`
 
-   Create a `.env.local` file in the root directory:
-
-   ```bash
-   # JWT Secret
-   JWT_SECRET=your-secret-key-here
-
-   # Supabase Configuration
-   NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
-   ```
-
-4. **Set Up Supabase Database**
-
-   1. Create a Supabase project at [supabase.com](https://supabase.com)
-   2. Go to SQL Editor in your Supabase dashboard
-   3. Copy the contents of `database/supabase-schema.sql`
-   4. Paste and run the SQL in the editor
-
-   For detailed instructions, see [SUPABASE_SETUP.md](./SUPABASE_SETUP.md)
+4. **Configure environment variables**
+   - Copy `.env.local` and update database credentials
+   - Set JWT_SECRET and other required variables
 
 5. **Run the development server**
    ```bash
@@ -81,135 +78,115 @@ A comprehensive web application for reporting and managing land encroachment iss
 6. **Open your browser**
    Navigate to [http://localhost:3000](http://localhost:3000)
 
-## � Default Users
+## 🔑 Demo Accounts
 
-The app includes default login credentials for testing:
+### User Account
+- **Email**: `user@example.com`
+- **Password**: Any password (demo mode)
+- **Access**: User dashboard with boundary segmentation and encroachment detection
 
-- **Admin Account**
-  - Email: `admin@landparser.com`
-  - Password: `password123`
-
-- **Test User Account**
-  - Email: `user@landparser.com`
-  - Password: `password123`
+### Admin Account
+- **Email**: `admin@example.com`
+- **Password**: Any password (demo mode)
+- **Access**: Admin dashboard for managing requests
 
 ## 📁 Project Structure
 
 ```
-Bswebapp4/
-├── src/
-│   ├── app/              # Next.js app directory
-│   │   ├── api/          # API routes
-│   │   ├── admin/        # Admin pages
-│   │   ├── login/        # Authentication pages
-│   │   └── user/         # User pages
-│   ├── components/       # React components
-│   │   ├── auth/         # Authentication components
-│   │   ├── layout/       # Layout components
-│   │   └── user/         # User dashboard components
-│   ├── contexts/         # React contexts
-│   ├── lib/              # Utilities and configurations
-│   │   ├── supabase.ts           # Supabase client
-│   │   ├── supabaseStore.ts      # Supabase data store
-│   │   ├── fallbackStorage.ts    # In-memory fallback
-│   │   └── theme.ts              # MUI theme configuration
-│   └── styles/           # Global styles
-├── database/             # Database schemas
-│   └── supabase-schema.sql
-├── public/              # Static assets
-└── package.json         # Dependencies
+src/
+├── api/                    # Mock API functions
+├── app/                    # Next.js app router
+│   ├── api/               # API routes
+│   ├── admin/             # Admin pages
+│   ├── dashboard/         # User dashboard pages
+│   └── layout.tsx         # Root layout
+├── components/
+│   ├── auth/              # Authentication components
+│   ├── admin/             # Admin-specific components
+│   ├── common/            # Shared components (Navbar, etc.)
+│   └── dashboard/         # User dashboard components
+├── contexts/              # React contexts
+│   ├── AuthContext.tsx    # Authentication state
+│   └── ThemeContext.tsx   # Theme management
+├── lib/                   # Utility libraries
+├── types/                 # TypeScript type definitions
+└── styles/               # Global styles
 ```
 
-## � API Routes
+## 🛠️ API Endpoints
 
 ### Authentication
 - `POST /api/auth/login` - User login
-- `POST /api/auth/register` - User registration
-- `POST /api/auth/logout` - User logout
 
-### Encroachment Management
-- `POST /api/encroachment` - Submit new encroachment report
-- `GET /api/encroachment?userEmail=<email>` - Get user's submissions
+### User Features
+- `POST /api/segmentation` - Generate boundary data
+- `POST /api/encroachment` - Submit encroachment request
+- `GET /api/encroachment` - Get user submissions
 
-### Admin Operations
-- `GET /api/admin/requests` - Get all encroachment requests
-- `PUT /api/admin/requests` - Update request status (approve/reject)
-- `GET /api/admin/notifications` - Get admin notifications
-
-### User Stats
-- `GET /api/user/stats?userEmail=<email>` - Get user submission statistics
+### Admin Features  
+- `GET /api/admin/requests` - Get pending requests
+- `POST /api/admin/requests` - Approve/reject requests
 
 ## 🔧 Configuration
 
-### Database
+### Database Setup
+1. Install PostgreSQL
+2. Create database: `CREATE DATABASE landparser_db;`
+3. Run schema from `database/schema.sql`
 
-The app uses Supabase for data persistence with an automatic fallback to in-memory storage when Supabase is not configured. This ensures the app works immediately after installation.
-
-### Authentication
-
-JWT-based authentication with secure token storage in httpOnly cookies.
-
-### Real-time Updates
-
-- User dashboard polls every 10 seconds for status updates
-- Admin dashboard polls every 5 seconds for new submissions
-- Automatic notification system for important events
-
-## 🎨 Customization
-
-### Theme
-
-Edit `src/lib/theme.ts` to customize colors, typography, and component styles.
-
-### Features
-
-The app is modular and easy to extend. Key components:
-- `EncroachmentDetection.tsx` - User submission form
-- `AdminDashboard.tsx` - Admin management interface
-- `UserDashboardNew.tsx` - User dashboard with stats
-
-## 🐛 Troubleshooting
-
-### Database Connection Issues
-
-If you see database connection errors:
-1. Verify your Supabase credentials in `.env.local`
-2. Check that you've run the database schema
-3. The app will work with fallback storage even without Supabase
-
-### Build Errors
-
-```bash
-# Clear Next.js cache
-rm -rf .next
-
-# Reinstall dependencies
-rm -rf node_modules package-lock.json
-npm install
+### Environment Variables
+```env
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=landparser_db
+DB_USER=postgres
+DB_PASSWORD=your_password
+JWT_SECRET=your-jwt-secret
 ```
+
+## 🎯 Key Features Implemented
+
+✅ Complete Next.js 15 setup with TypeScript  
+✅ Material-UI theming with light/dark mode  
+✅ PostgreSQL database schema  
+✅ Authentication system with JWT  
+✅ Role-based routing and protection  
+✅ User dashboard with 3 main features  
+✅ Admin dashboard for request management  
+✅ Responsive design and professional UI  
+✅ Mock API functions for demo purposes  
+✅ Image upload and file handling  
+✅ Real-time status updates  
 
 ## 🚀 Deployment
 
-### Vercel (Recommended)
+### Development
+```bash
+npm run dev
+```
 
-1. Push your code to GitHub
-2. Import your repository on [Vercel](https://vercel.com)
-3. Add environment variables in Vercel dashboard
-4. Deploy!
+### Production Build
+```bash
+npm run build
+npm start
+```
 
-### Other Platforms
-
-The app can be deployed to any platform that supports Next.js:
-- Netlify
-- Railway
-- AWS Amplify
-- Digital Ocean
+### Docker (Optional)
+```dockerfile
+# Dockerfile example
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+EXPOSE 3000
+CMD ["npm", "start"]
+```
 
 ## 🤝 Contributing
 
-Contributions, issues, and feature requests are welcome!
-
-1. Fork the project
+1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
 3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
 4. Push to the branch (`git push origin feature/AmazingFeature`)
@@ -217,15 +194,19 @@ Contributions, issues, and feature requests are welcome!
 
 ## 📝 License
 
-This project is open source and available under the [MIT License](LICENSE).
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-## 📧 Contact
+## 🆘 Support
 
-For questions or support, please open an issue in the repository.
+For support and questions:
+- Create an issue in the repository
+- Check the documentation
+- Review the demo accounts and features
 
----
+## 🔮 Future Enhancements
 
-**Built with ❤️ using Next.js and Supabase**
+- Real map integration (Google Maps/OpenStreetMap)
+- Advanced image processing for encroachment detection
 - Email notifications for status updates
 - Bulk upload capabilities
 - Advanced analytics and reporting

@@ -1,47 +1,19 @@
 -- Database schema for LandParser app
--- Create database: CREATE DATABASE landparser;
+-- Create database: CREATE DATABASE landparser_db;
 
--- Users table with enhanced fields
-CREATE TABLE IF NOT EXISTS users (
+-- Users table
+CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
-    password VARCHAR(255) NOT NULL,
-    role VARCHAR(50) DEFAULT 'user' CHECK (role IN ('user', 'admin')),
+    password_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(20) DEFAULT 'user' CHECK (role IN ('user', 'admin')),
     name VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Enhanced encroachment requests table with all form fields
-CREATE TABLE IF NOT EXISTS encroachment_requests (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id),
-    user_email VARCHAR(255) NOT NULL,
-    file_name VARCHAR(255) NOT NULL,
-    file_data TEXT NOT NULL, -- Base64 encoded image data
-    area_name VARCHAR(255),
-    plot_name VARCHAR(255),
-    comments TEXT,
-    coordinates VARCHAR(255),
-    status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
-    admin_action VARCHAR(50),
-    admin_reason TEXT,
-    admin_feedback TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Admin notifications table
-CREATE TABLE IF NOT EXISTS admin_notifications (
-    id SERIAL PRIMARY KEY,
-    message TEXT NOT NULL,
-    type VARCHAR(50) DEFAULT 'info' CHECK (type IN ('info', 'success', 'warning', 'error')),
-    read_status BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Land plots table (kept for future use)
-CREATE TABLE IF NOT EXISTS land_plots (
+-- Land plots table
+CREATE TABLE land_plots (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id),
     state VARCHAR(100) DEFAULT 'Maharashtra',
@@ -58,15 +30,30 @@ CREATE TABLE IF NOT EXISTS land_plots (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Create indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_encroachment_requests_user_email ON encroachment_requests(user_email);
-CREATE INDEX IF NOT EXISTS idx_encroachment_requests_status ON encroachment_requests(status);
-CREATE INDEX IF NOT EXISTS idx_encroachment_requests_created_at ON encroachment_requests(created_at);
-CREATE INDEX IF NOT EXISTS idx_admin_notifications_read_status ON admin_notifications(read_status);
-CREATE INDEX IF NOT EXISTS idx_admin_notifications_created_at ON admin_notifications(created_at);
+-- Encroachment requests table
+CREATE TABLE encroachment_requests (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id),
+    user_email VARCHAR(255),
+    file_name VARCHAR(255),
+    file_path VARCHAR(500),
+    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+    admin_notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
--- Insert default users (with properly hashed passwords)
-INSERT INTO users (email, password, role, name) VALUES 
-('user@landparser.com', '$2b$10$rGIqzpHKMiC/xKfHYGn0j.VQf5xKbL8qLfL6MzE1xQxQKzYzLJz9K', 'user', 'Test User'),
-('admin@landparser.com', '$2b$10$rGIqzpHKMiC/xKfHYGn0j.VQf5xKbL8qLfL6MzE1xQxQKzYzLJz9K', 'admin', 'Admin User')
-ON CONFLICT (email) DO NOTHING;
+-- Insert default users
+INSERT INTO users (email, password_hash, role, name) VALUES 
+('user@example.com', '$2b$10$1234567890abcdefghijklmnopqrstuvwxyz', 'user', 'John Doe'),
+('admin@example.com', '$2b$10$1234567890abcdefghijklmnopqrstuvwxyz', 'admin', 'Admin User');
+
+-- Insert sample land plot data
+INSERT INTO land_plots (user_id, city, taluka, plot_no, coordinates, predicted_price, owner_name, land_type, soil_type, area) VALUES 
+(1, 'Pune', 'Haveli', 'P001', '{"type":"Polygon","coordinates":[[[73.8567,18.5204],[73.8577,18.5204],[73.8577,18.5214],[73.8567,18.5214],[73.8567,18.5204]]]}', 4500000, 'Ramesh Kumar', 'Agricultural', 'Black Cotton Soil', 2.5);
+
+-- Insert sample encroachment requests
+INSERT INTO encroachment_requests (user_id, user_email, file_name, status) VALUES 
+(1, 'user@example.com', 'plot_image_1.jpg', 'pending'),
+(1, 'user@example.com', 'old_land_photo.png', 'approved'),
+(1, 'user@example.com', 'boundary_pic.jpg', 'rejected');

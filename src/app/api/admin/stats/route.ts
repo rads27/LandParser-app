@@ -3,10 +3,10 @@ import encroachmentStore from '@/lib/encroachmentStore';
 
 export async function GET() {
   try {
-    const todayStats = await encroachmentStore.getStatsForToday();
-    const monthStats = await encroachmentStore.getStatsForMonth();
-    const pendingSubmissions = await encroachmentStore.getPendingSubmissions();
-    const allSubmissions = await encroachmentStore.getAllSubmissions();
+    const todayStats = encroachmentStore.getStatsForToday();
+    const monthStats = encroachmentStore.getStatsForMonth();
+    const pendingCount = encroachmentStore.getPendingSubmissions().length;
+    const allSubmissions = encroachmentStore.getAllSubmissions();
     
     // Calculate accuracy rate (approved / total processed)
     const processedSubmissions = allSubmissions.filter(sub => sub.status !== 'pending');
@@ -18,7 +18,7 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       data: {
-        pending: pendingSubmissions.length,
+        pending: pendingCount,
         processedToday: todayStats.processed,
         totalThisMonth: monthStats.submitted,
         accuracyRate

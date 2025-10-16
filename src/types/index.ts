@@ -49,21 +49,4 @@ export interface SubmissionHistory {
   submittedAt: string;
   fileName: string;
   status: string;
-  processedAt?: string;
-  adminNotes?: string;
-  complaintDetails?: {
-    areaName: string;
-    plotName: string;
-    plotNumber: string;
-    comments: string;
-    latitude: string;
-    longitude: string;
-    contactName: string;
-    contactPhone: string;
-    address: string;
-    propertyType: string;
-    estimatedArea: string;
-  };
-  fileData?: string;
-  fileType?: string;
 }

@@ -3,8 +3,8 @@ import notificationStore from '@/lib/notificationStore';
 
 export async function GET() {
   try {
-    const notifications = await notificationStore.getNotifications();
-    const unreadCount = await notificationStore.getUnreadCount();
+    const notifications = notificationStore.getNotifications();
+    const unreadCount = notificationStore.getUnreadCount();
 
     console.log('Notifications API: Total notifications:', notifications.length);
     console.log('Notifications API: Unread count:', unreadCount);
@@ -32,14 +32,14 @@ export async function POST(request: NextRequest) {
     switch (action) {
       case 'markRead':
         if (notificationId) {
-          await notificationStore.markAsRead(notificationId);
+          notificationStore.markAsRead(notificationId);
         }
         break;
       case 'markAllRead':
-        await notificationStore.markAllAsRead();
+        notificationStore.markAllAsRead();
         break;
       case 'clearAll':
-        await notificationStore.clearAll();
+        notificationStore.clearAll();
         break;
       default:
         return NextResponse.json(

@@ -1,21 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import supabaseEncroachmentStore from '@/lib/supabaseStore';
-import fallbackStorage from '@/lib/fallbackStorage';
+import encroachmentStore from '@/lib/encroachmentStore';
 
 export async function GET() {
   try {
-    let pendingRequests;
-    try {
-      pendingRequests = await supabaseEncroachmentStore.getPendingSubmissions();
-    } catch (error) {
-      console.log('Admin API: Supabase failed, using fallback storage');
-      pendingRequests = await fallbackStorage.getPendingSubmissions();
-    }
+    const pendingRequests = encroachmentStore.getPendingSubmissions();
     console.log('Admin API: Pending requests count:', pendingRequests.length);
-    console.log('Admin API: Requests:', pendingRequests.map((r: any) => ({ id: r.id, userEmail: r.userEmail, status: r.status })));
+    console.log('Admin API: Requests:', pendingRequests.map(r => ({ id: r.id, userEmail: r.userEmail, status: r.status })));
     
     // Format for admin dashboard
-    const formattedRequests = pendingRequests.map((req: any) => ({
+    const formattedRequests = pendingRequests.map(req => ({
       id: req.id,
       userEmail: req.userEmail,
       fileName: req.fileName,
@@ -49,21 +42,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let updatedSubmission;
-    try {
-      updatedSubmission = await supabaseEncroachmentStore.updateSubmissionStatus(
-        requestId, 
-        action, 
-        notes
-      );
-    } catch (error) {
-      console.log('Admin API: Supabase failed, using fallback storage');
-      updatedSubmission = await fallbackStorage.updateSubmissionStatus(
-        requestId, 
-        action, 
-        notes
-      );
-    }
+    const updatedSubmission = encroachmentStore.updateSubmissionStatus(
+      requestId, 
+      action, 
+      notes
+    );
 
     if (!updatedSubmission) {
       return NextResponse.json(

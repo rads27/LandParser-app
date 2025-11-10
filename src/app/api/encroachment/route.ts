@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import encroachmentStore from '@/lib/encroachmentStore';
 import notificationStore from '@/lib/notificationStore';
+import * as db from '@/lib/database';
+import { shouldUseDatabase } from '@/lib/config';
 import jwt from 'jsonwebtoken';
 
 // Helper function to get user from token
@@ -40,6 +42,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+    if (file.size > maxSize) {
+      return NextResponse.json(
+        { error: 'File size exceeds 5MB limit. Please upload a smaller file.' },
+        { status: 400 }
+      );
+    }
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      return NextResponse.json(
+        { error: 'Only image files are allowed (JPG, PNG, GIF, etc.)' },
+        { status: 400 }
+      );
+    }
+
     // Parse complaint details
     let complaintDetails = {};
     if (complaintDetailsStr) {
@@ -55,17 +74,54 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(bytes);
     const fileData = buffer.toString('base64');
 
-    // Store the submission
-    const submission = encroachmentStore.addSubmission({
-      userEmail,
-      fileName: file.name,
-      fileData,
-      fileType: file.type,
-      status: 'pending',
-      complaintDetails,
-    });
+    // Store the submission (database or in-memory)
+    let submission;
+    const useDB = shouldUseDatabase();
+    
+    try {
+      if (useDB) {
+        // Use database
+        submission = await db.addSubmission({
+          userEmail,
+          fileName: file.name,
+          fileData,
+          fileType: file.type,
+          status: 'pending',
+          complaintDetails,
+        });
+        console.log('Encroachment API: Submission saved to database:', submission.id);
+      } else {
+        // Use in-memory store
+        submission = encroachmentStore.addSubmission({
+          userEmail,
+          fileName: file.name,
+          fileData,
+          fileType: file.type,
+          status: 'pending',
+          complaintDetails,
+        });
+        console.log('Encroachment API: Submission saved to memory:', submission.id);
+      }
+    } catch (dbError) {
+      console.error('Database error, falling back to in-memory storage:', dbError);
+      // Fallback to in-memory if database fails
+      submission = encroachmentStore.addSubmission({
+        userEmail,
+        fileName: file.name,
+        fileData,
+        fileType: file.type,
+        status: 'pending',
+        complaintDetails,
+      });
+    }
 
-    console.log('Encroachment API: New submission created:', { id: submission.id, userEmail, fileName: file.name, status: submission.status });
+    console.log('Encroachment API: New submission created:', { 
+      id: submission.id, 
+      userEmail, 
+      fileName: file.name, 
+      status: submission.status,
+      storage: useDB ? 'database' : 'memory'
+    });
     console.log('Encroachment API: Total submissions now:', encroachmentStore.getAllSubmissions().length);
 
     // Add notification for admin
@@ -75,7 +131,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'File submitted for review successfully',
-      submissionId: submission.id
+      submissionId: submission.id,
+      storage: shouldUseDatabase() ? 'database' : 'memory'
     });
   } catch (error) {
     console.error('Encroachment submission error:', error);
@@ -98,7 +155,20 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const submissions = encroachmentStore.getUserSubmissions(userEmail);
+    // Get submissions (database or in-memory)
+    let submissions;
+    const useDB = shouldUseDatabase();
+    
+    try {
+      if (useDB) {
+        submissions = await db.getUserSubmissions(userEmail);
+      } else {
+        submissions = encroachmentStore.getUserSubmissions(userEmail);
+      }
+    } catch (dbError) {
+      console.error('Database error, falling back to in-memory:', dbError);
+      submissions = encroachmentStore.getUserSubmissions(userEmail);
+    }
     
     // Format submissions for frontend
     const formattedSubmissions = submissions.map(sub => ({
@@ -107,12 +177,16 @@ export async function GET(request: NextRequest) {
       status: sub.status === 'approved' ? 'Approved' : 
               sub.status === 'rejected' ? 'Rejected' : 'Pending',
       submittedAt: sub.submittedAt,
-      processedAt: sub.processedAt
+      processedAt: sub.processedAt,
+      imageUrl: `data:${sub.fileType};base64,${sub.fileData}`,
+      adminNotes: sub.adminNotes,
+      complaintDetails: sub.complaintDetails
     }));
 
     return NextResponse.json({
       success: true,
-      data: formattedSubmissions
+      data: formattedSubmissions,
+      storage: useDB ? 'database' : 'memory'
     });
   } catch (error) {
     console.error('Get submissions error:', error);

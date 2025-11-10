@@ -28,7 +28,9 @@ export interface EncroachmentRequest {
   fileName: string;
   imageUrl: string;
   submittedAt: string;
+  processedAt?: string;
   status: 'pending' | 'approved' | 'rejected';
+  adminNotes?: string;
   complaintDetails?: {
     areaName: string;
     plotName: string;
@@ -49,4 +51,8 @@ export interface SubmissionHistory {
   submittedAt: string;
   fileName: string;
   status: string;
+  imageUrl?: string;
+  processedAt?: string;
+  adminNotes?: string;
+  complaintDetails?: any;
 }

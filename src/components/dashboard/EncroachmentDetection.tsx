@@ -28,24 +28,42 @@ import {
 } from '@mui/material';  
 import {
   CloudUpload,
+  Close,
+  Image,
   History,
   CheckCircle,
   Cancel,
   Pending,
-  Close,
   Visibility,
+  PhotoCamera,
 } from '@mui/icons-material';
 import { SubmissionHistory } from '@/types';
+import dynamic from 'next/dynamic';
+
+// Dynamically import LocationPicker to avoid SSR issues with Leaflet
+const LocationPicker = dynamic(() => import('./LocationPicker'), {
+  ssr: false,
+  loading: () => (
+    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 400 }}>
+      <CircularProgress />
+    </Box>
+  ),
+});
 
 const EncroachmentDetection: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [selectedSubmission, setSelectedSubmission] = useState<SubmissionHistory | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissions, setSubmissions] = useState<SubmissionHistory[]>([]);
   const [submitSuccess, setSubmitSuccess] = useState('');
   const [error, setError] = useState('');
+  
+  // Track if user manually edited the address (to prevent pin from moving)
+  const [addressManuallyEdited, setAddressManuallyEdited] = useState(false);
   
   // Encroachment complaint form data
   const [formData, setFormData] = useState({
@@ -75,8 +93,22 @@ const EncroachmentDetection: React.FC = () => {
       const userData = localStorage.getItem('user');
       if (!userData) return;
       
-      const user = JSON.parse(userData);
+      let user;
+      try {
+        user = JSON.parse(userData);
+      } catch (parseError) {
+        console.error('Failed to parse user data from localStorage:', parseError);
+        localStorage.removeItem('user'); // Clear corrupted data
+        return;
+      }
+      
       const response = await fetch(`/api/encroachment?userEmail=${encodeURIComponent(user.email)}`);
+      
+      if (!response.ok) {
+        console.error(`HTTP ${response.status}: ${response.statusText}`);
+        return;
+      }
+      
       const data = await response.json();
       
       if (data.success) {
@@ -93,6 +125,13 @@ const EncroachmentDetection: React.FC = () => {
       // Validate file type
       if (!file.type.startsWith('image/')) {
         setError('Please select an image file');
+        return;
+      }
+      
+      // Validate file size (max 5MB)
+      const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+      if (file.size > maxSize) {
+        setError('File size must be less than 5MB. Please compress your image or select a smaller file.');
         return;
       }
       
@@ -114,6 +153,11 @@ const EncroachmentDetection: React.FC = () => {
     }
   };
 
+  const handleViewDetails = (submission: SubmissionHistory) => {
+    setSelectedSubmission(submission);
+    setDetailsDialogOpen(true);
+  };
+
   const handleSubmitClick = () => {
     if (!selectedFile) {
       setError('Please select a file to upload');
@@ -133,11 +177,41 @@ const EncroachmentDetection: React.FC = () => {
   };
 
   const handleFormChange = (field: string, value: string) => {
+    // Track if user manually edited the address field
+    if (field === 'address') {
+      setAddressManuallyEdited(true);
+    }
+    
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
   };
+
+  // Handle location selection from map
+  const handleLocationSelect = (location: { latitude: string; longitude: string; address: string; areaName: string }) => {
+    console.log('EncroachmentDetection: Location selected:', location);
+    
+    // Update coordinates and area name always
+    // But only update address if user hasn't manually edited it
+    setFormData(prev => ({
+      ...prev,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      address: addressManuallyEdited ? prev.address : location.address, // Keep manual edit if exists
+      areaName: location.areaName || prev.areaName,
+    }));
+    
+    // If we're updating from map, reset the manual edit flag (for next map interaction)
+    if (!addressManuallyEdited) {
+      // Address came from map, so it's not a manual edit
+    }
+  };
+
+  // Debug: Log formData changes
+  useEffect(() => {
+    console.log('EncroachmentDetection: FormData updated:', formData);
+  }, [formData]);
 
   const handleConfirmSubmit = () => {
     setConfirmDialogOpen(false);
@@ -162,7 +236,16 @@ const EncroachmentDetection: React.FC = () => {
         return;
       }
       
-      const user = JSON.parse(userData);
+      let user;
+      try {
+        user = JSON.parse(userData);
+      } catch (parseError) {
+        console.error('Failed to parse user data:', parseError);
+        setError('Authentication error. Please log in again.');
+        localStorage.removeItem('user');
+        return;
+      }
+      
       const submitFormData = new FormData();
       submitFormData.append('file', selectedFile);
       submitFormData.append('userEmail', user.email);
@@ -174,6 +257,11 @@ const EncroachmentDetection: React.FC = () => {
         method: 'POST',
         body: submitFormData,
       });
+
+      if (!response.ok) {
+        setError(`Server error (${response.status}). Please try again.`);
+        return;
+      }
 
       const data = await response.json();
 
@@ -244,260 +332,265 @@ const EncroachmentDetection: React.FC = () => {
         Encroachment Detection
       </Typography>
       <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-        Upload land images for automated encroachment analysis and monitoring
+        Report encroachment issues with location and evidence
       </Typography>
 
-      <Grid container spacing={4}>
-        {/* Upload Form */}
-        <Grid item xs={12} md={6}>
+      <Grid container spacing={3}>
+        {/* Left Column - Map and Location Details */}
+        <Grid item xs={12} lg={6}>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
-                Encroachment Complaint Details
+                📍 Select Location
               </Typography>
               
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                {/* Property Information */}
-                <Box>
-                  <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 'bold' }}>
-                    Property Information
-                  </Typography>
-                  <Grid container spacing={2}>
-                    <Grid item xs={12} sm={6}>
-                      <TextField
-                        fullWidth
-                        label="Area Name"
-                        value={formData.areaName}
-                        onChange={(e) => handleFormChange('areaName', e.target.value)}
-                        required
-                      />
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <TextField
-                        fullWidth
-                        label="Plot Name"
-                        value={formData.plotName}
-                        onChange={(e) => handleFormChange('plotName', e.target.value)}
-                        required
-                      />
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <TextField
-                        fullWidth
-                        label="Plot Number"
-                        value={formData.plotNumber}
-                        onChange={(e) => handleFormChange('plotNumber', e.target.value)}
-                      />
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <TextField
-                        fullWidth
-                        label="Property Type"
-                        value={formData.propertyType}
-                        onChange={(e) => handleFormChange('propertyType', e.target.value)}
-                        placeholder="e.g., Residential, Commercial, Agricultural"
-                      />
-                    </Grid>
-                    <Grid item xs={12}>
-                      <TextField
-                        fullWidth
-                        label="Estimated Area"
-                        value={formData.estimatedArea}
-                        onChange={(e) => handleFormChange('estimatedArea', e.target.value)}
-                        placeholder="e.g., 1000 sq ft, 2 acres"
-                      />
-                    </Grid>
-                  </Grid>
-                </Box>
+              {/* Interactive Map */}
+              <LocationPicker 
+                onLocationSelect={handleLocationSelect}
+                initialLat={formData.latitude}
+                initialLng={formData.longitude}
+              />
 
-                <Divider />
+              <Divider sx={{ my: 3 }} />
 
-                {/* GPS Coordinates */}
-                <Box>
-                  <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 'bold' }}>
-                    GPS Coordinates
-                  </Typography>
-                  <Grid container spacing={2}>
-                    <Grid item xs={12} sm={6}>
-                      <TextField
-                        fullWidth
-                        label="Latitude"
-                        value={formData.latitude}
-                        onChange={(e) => handleFormChange('latitude', e.target.value)}
-                        placeholder="e.g., 28.6139"
-                        type="number"
-                        inputProps={{ step: "any" }}
-                      />
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <TextField
-                        fullWidth
-                        label="Longitude"
-                        value={formData.longitude}
-                        onChange={(e) => handleFormChange('longitude', e.target.value)}
-                        placeholder="e.g., 77.2090"
-                        type="number"
-                        inputProps={{ step: "any" }}
-                      />
-                    </Grid>
-                  </Grid>
-                </Box>
-
-                <Divider />
-
-                {/* Contact Information */}
-                <Box>
-                  <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 'bold' }}>
-                    Contact Information
-                  </Typography>
-                  <Grid container spacing={2}>
-                    <Grid item xs={12} sm={6}>
-                      <TextField
-                        fullWidth
-                        label="Contact Name"
-                        value={formData.contactName}
-                        onChange={(e) => handleFormChange('contactName', e.target.value)}
-                        required
-                      />
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <TextField
-                        fullWidth
-                        label="Contact Phone"
-                        value={formData.contactPhone}
-                        onChange={(e) => handleFormChange('contactPhone', e.target.value)}
-                        required
-                      />
-                    </Grid>
-                    <Grid item xs={12}>
-                      <TextField
-                        fullWidth
-                        label="Property Address"
-                        value={formData.address}
-                        onChange={(e) => handleFormChange('address', e.target.value)}
-                        multiline
-                        rows={2}
-                        required
-                      />
-                    </Grid>
-                  </Grid>
-                </Box>
-
-                <Divider />
-
-                {/* Comments */}
-                <Box>
-                  <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 'bold' }}>
-                    Additional Comments
-                  </Typography>
+              {/* Property Details */}
+              <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 'bold' }}>
+                Property Details
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
                   <TextField
                     fullWidth
+                    size="small"
+                    label="Area Name"
+                    value={formData.areaName}
+                    onChange={(e) => handleFormChange('areaName', e.target.value)}
+                    required
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Plot Name"
+                    value={formData.plotName}
+                    onChange={(e) => handleFormChange('plotName', e.target.value)}
+                    required
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Plot Number"
+                    value={formData.plotNumber}
+                    onChange={(e) => handleFormChange('plotNumber', e.target.value)}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Property Type"
+                    value={formData.propertyType}
+                    onChange={(e) => handleFormChange('propertyType', e.target.value)}
+                    placeholder="Residential, Commercial..."
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Estimated Area"
+                    value={formData.estimatedArea}
+                    onChange={(e) => handleFormChange('estimatedArea', e.target.value)}
+                    placeholder="e.g., 1000 sq ft"
+                  />
+                </Grid>
+              </Grid>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Right Column - Contact & Upload */}
+        <Grid item xs={12} lg={6}>
+          {/* Contact Information */}
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                📞 Contact Information
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Contact Name"
+                    value={formData.contactName}
+                    onChange={(e) => handleFormChange('contactName', e.target.value)}
+                    required
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Contact Phone"
+                    value={formData.contactPhone}
+                    onChange={(e) => handleFormChange('contactPhone', e.target.value)}
+                    required
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Address"
+                      value={formData.address}
+                      onChange={(e) => handleFormChange('address', e.target.value)}
+                      multiline
+                      rows={2}
+                      required
+                      helperText={
+                        addressManuallyEdited 
+                          ? "✏️ Manual edit preserved - pin won't move when you click the map" 
+                          : "Address will auto-fill when you mark location on the map above"
+                      }
+                      color={addressManuallyEdited ? "success" : "primary"}
+                    />
+                    {addressManuallyEdited && (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => setAddressManuallyEdited(false)}
+                        sx={{ mt: 0.5, minWidth: 'auto', whiteSpace: 'nowrap' }}
+                      >
+                        Enable Auto-fill
+                      </Button>
+                    )}
+                  </Box>
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    size="small"
                     label="Comments"
                     value={formData.comments}
                     onChange={(e) => handleFormChange('comments', e.target.value)}
                     multiline
-                    rows={3}
-                    placeholder="Describe the encroachment issue, any relevant details..."
+                    rows={2}
+                    placeholder="Describe the encroachment issue..."
                   />
-                </Box>
-              </Box>
+                </Grid>
+              </Grid>
             </CardContent>
           </Card>
-        </Grid>
 
-        {/* Upload Form */}
-        <Grid item xs={12} md={6}>
+          {/* Image Upload */}
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
-                Upload Land Image
+                📷 Upload Evidence
               </Typography>
               
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                <Box
-                  sx={{
-                    border: '2px dashed',
-                    borderColor: selectedFile ? 'primary.main' : 'grey.300',
-                    borderRadius: 2,
-                    p: 4,
-                    textAlign: 'center',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s',
-                    '&:hover': {
-                      borderColor: 'primary.main',
-                      bgcolor: 'action.hover',
-                    },
-                  }}
-                  onClick={() => document.getElementById('file-upload')?.click()}
-                >
-                  <input
-                    id="file-upload"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileSelect}
-                    style={{ display: 'none' }}
-                  />
-                  <CloudUpload
-                    sx={{
-                      fontSize: 48,
-                      color: selectedFile ? 'primary.main' : 'grey.400',
-                      mb: 2,
-                    }}
-                  />
-                  <Typography variant="h6" gutterBottom>
-                    {selectedFile ? selectedFile.name : 'Click to upload image'}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Supported formats: JPG, PNG, GIF (Max 10MB)
-                  </Typography>
-                </Box>
+              <input
+                id="file-upload"
+                type="file"
+                accept="image/*"
+                onChange={handleFileSelect}
+                style={{ display: 'none' }}
+              />
 
-                {error && (
-                  <Alert severity="error">{error}</Alert>
-                )}
-
-                {submitSuccess && (
-                  <Alert severity="success">{submitSuccess}</Alert>
-                )}
-                
-                {/* Preview Button */}
-                {selectedFile && imagePreview && (
-                  <Button
-                    fullWidth
-                    variant="outlined"
-                    size="large"
-                    onClick={handlePreviewImage}
-                    startIcon={<Visibility />}
-                    sx={{ py: 2, mb: 2 }}
-                  >
-                    Preview Image
-                  </Button>
-                )}
-                
+              {!selectedFile ? (
                 <Button
                   fullWidth
-                  variant="contained"
+                  variant="outlined"
                   size="large"
-                  onClick={handleSubmitClick}
-                  disabled={!selectedFile || isSubmitting || !formData.areaName || !formData.plotName || !formData.contactName || !formData.contactPhone || !formData.address}
-                  startIcon={isSubmitting ? <CircularProgress size={20} /> : <CloudUpload />}
-                  sx={{ py: 2 }}
+                  startIcon={<PhotoCamera />}
+                  onClick={() => document.getElementById('file-upload')?.click()}
+                  sx={{ py: 2, mb: 2 }}
                 >
-                  {isSubmitting ? 'Submitting...' : 'Submit for Review'}
+                  Select Image (Max 5MB)
                 </Button>
-              </Box>
+              ) : (
+                <Box sx={{ mb: 2 }}>
+                  <Paper 
+                    variant="outlined" 
+                    sx={{ 
+                      p: 2, 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'space-between',
+                      bgcolor: 'success.50'
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <CheckCircle color="success" />
+                      <Box>
+                        <Typography variant="body2" fontWeight="bold">
+                          {selectedFile.name}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                        </Typography>
+                      </Box>
+                    </Box>
+                    <Box>
+                      {imagePreview && (
+                        <IconButton size="small" onClick={handlePreviewImage}>
+                          <Visibility />
+                        </IconButton>
+                      )}
+                      <IconButton 
+                        size="small" 
+                        onClick={() => {
+                          setSelectedFile(null);
+                          setImagePreview(null);
+                          const fileInput = document.getElementById('file-upload') as HTMLInputElement;
+                          if (fileInput) fileInput.value = '';
+                        }}
+                      >
+                        <Close />
+                      </IconButton>
+                    </Box>
+                  </Paper>
+                </Box>
+              )}
+
+              {error && (
+                <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
+              )}
+
+              {submitSuccess && (
+                <Alert severity="success" sx={{ mb: 2 }}>{submitSuccess}</Alert>
+              )}
+                
+              <Button
+                fullWidth
+                variant="contained"
+                size="large"
+                onClick={handleSubmitClick}
+                disabled={!selectedFile || isSubmitting || !formData.contactName || !formData.contactPhone || !formData.address}
+                startIcon={isSubmitting ? <CircularProgress size={20} /> : <CloudUpload />}
+                sx={{ py: 1.5 }}
+              >
+                {isSubmitting ? 'Submitting...' : 'Submit for Review'}
+              </Button>
             </CardContent>
           </Card>
         </Grid>
 
-        {/* Submission History */}
-        <Grid item xs={12} md={6}>
+        {/* Submission History - Full Width */}
+        <Grid item xs={12}>
           <Card>
             <CardContent>
-              <Typography variant="h6" gutterBottom>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                 <History sx={{ mr: 1 }} />
-                Submission History
-              </Typography>
+                <Typography variant="h6">
+                  Submission History
+                </Typography>
+              </Box>
               
               {submissions.length > 0 ? (
                 <TableContainer component={Paper} variant="outlined">
@@ -506,6 +599,7 @@ const EncroachmentDetection: React.FC = () => {
                       <TableRow>
                         <TableCell>File Name</TableCell>
                         <TableCell>Status</TableCell>
+                        <TableCell>Submitted</TableCell>
                         <TableCell align="center">Action</TableCell>
                       </TableRow>
                     </TableHead>
@@ -528,11 +622,16 @@ const EncroachmentDetection: React.FC = () => {
                               />
                             </Box>
                           </TableCell>
+                          <TableCell>
+                            <Typography variant="caption" color="text.secondary">
+                              {new Date(submission.submittedAt).toLocaleDateString()}
+                            </Typography>
+                          </TableCell>
                           <TableCell align="center">
                             <Button
                               size="small"
                               variant="outlined"
-                              disabled={submission.status.toLowerCase() === 'pending'}
+                              onClick={() => handleViewDetails(submission)}
                             >
                               View Details
                             </Button>
@@ -619,6 +718,146 @@ const EncroachmentDetection: React.FC = () => {
           <Button onClick={handleConfirmSubmit} variant="contained">
             Yes, Submit
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Submission Details Dialog */}
+      <Dialog
+        open={detailsDialogOpen}
+        onClose={() => setDetailsDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h6">Submission Details</Typography>
+            <IconButton onClick={() => setDetailsDialogOpen(false)}>
+              <Close />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent dividers>
+          {selectedSubmission && (
+            <Grid container spacing={3}>
+              {/* Image Preview */}
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle2" gutterBottom fontWeight="bold">
+                  Uploaded Image
+                </Typography>
+                {selectedSubmission.imageUrl ? (
+                  <Box
+                    component="img"
+                    src={selectedSubmission.imageUrl}
+                    alt={selectedSubmission.fileName}
+                    sx={{
+                      width: '100%',
+                      borderRadius: 1,
+                      border: '1px solid',
+                      borderColor: 'divider'
+                    }}
+                  />
+                ) : (
+                  <Box
+                    sx={{
+                      height: 200,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      bgcolor: 'grey.100',
+                      borderRadius: 1
+                    }}
+                  >
+                    <Image sx={{ fontSize: 60, color: 'grey.400' }} />
+                  </Box>
+                )}
+              </Grid>
+
+              {/* Submission Info */}
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle2" gutterBottom fontWeight="bold">
+                  Submission Information
+                </Typography>
+                <Table size="small">
+                  <TableBody>
+                    <TableRow>
+                      <TableCell><strong>File Name:</strong></TableCell>
+                      <TableCell>{selectedSubmission.fileName}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell><strong>Status:</strong></TableCell>
+                      <TableCell>
+                        <Chip
+                          label={selectedSubmission.status}
+                          size="small"
+                          color={getStatusColor(selectedSubmission.status)}
+                        />
+                      </TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell><strong>Submitted:</strong></TableCell>
+                      <TableCell>{new Date(selectedSubmission.submittedAt).toLocaleString()}</TableCell>
+                    </TableRow>
+                    {selectedSubmission.processedAt && (
+                      <TableRow>
+                        <TableCell><strong>Processed:</strong></TableCell>
+                        <TableCell>{new Date(selectedSubmission.processedAt).toLocaleString()}</TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+
+                {/* Location Details */}
+                {(selectedSubmission as any).complaintDetails && (
+                  <>
+                    <Divider sx={{ my: 2 }} />
+                    <Typography variant="subtitle2" gutterBottom fontWeight="bold">
+                      Location Details
+                    </Typography>
+                    <Table size="small">
+                      <TableBody>
+                        {(selectedSubmission as any).complaintDetails.areaName && (
+                          <TableRow>
+                            <TableCell><strong>Area:</strong></TableCell>
+                            <TableCell>{(selectedSubmission as any).complaintDetails.areaName}</TableCell>
+                          </TableRow>
+                        )}
+                        {(selectedSubmission as any).complaintDetails.plotName && (
+                          <TableRow>
+                            <TableCell><strong>Plot Name:</strong></TableCell>
+                            <TableCell>{(selectedSubmission as any).complaintDetails.plotName}</TableCell>
+                          </TableRow>
+                        )}
+                        {(selectedSubmission as any).complaintDetails.address && (
+                          <TableRow>
+                            <TableCell><strong>Address:</strong></TableCell>
+                            <TableCell>{(selectedSubmission as any).complaintDetails.address}</TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </>
+                )}
+
+                {/* Admin Notes */}
+                {selectedSubmission.adminNotes && (
+                  <>
+                    <Divider sx={{ my: 2 }} />
+                    <Typography variant="subtitle2" gutterBottom fontWeight="bold" color="primary">
+                      Admin Notes
+                    </Typography>
+                    <Paper sx={{ p: 2, bgcolor: 'info.lighter' }}>
+                      <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
+                        {selectedSubmission.adminNotes}
+                      </Typography>
+                    </Paper>
+                  </>
+                )}
+              </Grid>
+            </Grid>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDetailsDialogOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>
     </Box>

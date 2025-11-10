@@ -51,10 +51,36 @@ A comprehensive land management and analysis application built with Next.js, Rea
 
 ## 📦 Installation
 
+### Quick Setup (Automated)
+
+#### 🐧 Linux/Mac:
+```bash
+chmod +x setup-database.sh
+./setup-database.sh
+```
+
+#### 🪟 Windows:
+**Option 1 - PowerShell (Recommended):**
+```powershell
+.\setup-database.ps1
+```
+
+**Option 2 - Command Prompt:**
+```cmd
+setup-database.bat
+```
+
+**Option 3 - Manual Setup:**
+See detailed guide: **[WINDOWS_SETUP.md](WINDOWS_SETUP.md)**
+
+---
+
+### Manual Setup
+
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd Bswebapp4
+   cd LandParser-app
    ```
 
 2. **Install dependencies**
@@ -67,11 +93,12 @@ A comprehensive land management and analysis application built with Next.js, Rea
    - Run the SQL schema from `database/schema.sql`
 
 4. **Configure environment variables**
-   - Copy `.env.local` and update database credentials
-   - Set JWT_SECRET and other required variables
+   - Copy `.env.example` to `.env.local`
+   - Update database credentials and JWT_SECRET
 
-5. **Run the development server**
+5. **Build and run the development server**
    ```bash
+   npm run build
    npm run dev
    ```
 

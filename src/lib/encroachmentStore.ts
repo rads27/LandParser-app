@@ -36,6 +36,10 @@ class EncroachmentStore {
     return this.submissions.filter(sub => sub.status === 'pending');
   }
 
+  getProcessedSubmissions(): EncroachmentSubmission[] {
+    return this.submissions.filter(sub => sub.status === 'approved' || sub.status === 'rejected');
+  }
+
   getAllSubmissions(): EncroachmentSubmission[] {
     return this.submissions;
   }

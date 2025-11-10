@@ -54,15 +54,29 @@ const UserDashboard: React.FC = () => {
   // Fetch real-time dashboard statistics
   const fetchDashboardStats = async () => {
     try {
-      const response = await fetch('/api/admin/stats');
+      // Get user email from localStorage
+      const userData = localStorage.getItem('user');
+      if (!userData) return;
+      
+      const user = JSON.parse(userData);
+      
+      // Fetch user-specific stats
+      const response = await fetch(`/api/encroachment?userEmail=${encodeURIComponent(user.email)}`);
       if (response.ok) {
         const result = await response.json();
-        const stats = result.data;
+        const submissions = result.data || [];
+        
+        // Calculate user-specific statistics
+        const totalSubmissions = submissions.length;
+        const pendingCount = submissions.filter((s: any) => s.status.toLowerCase() === 'pending').length;
+        const approvedCount = submissions.filter((s: any) => s.status.toLowerCase() === 'approved').length;
+        const rejectedCount = submissions.filter((s: any) => s.status.toLowerCase() === 'rejected').length;
+        
         setDashboardStats({
-          totalSubmissions: stats.totalThisMonth,
-          totalValue: 240000000, // 2.4Cr fallback (could be calculated based on submissions)
-          pendingReviews: stats.pending,
-          accuracyRate: stats.accuracyRate
+          totalSubmissions: totalSubmissions,
+          totalValue: approvedCount, // Show approved count instead of fake value
+          pendingReviews: pendingCount,
+          accuracyRate: rejectedCount // Show rejected count (can be improved later)
         });
       }
     } catch (error) {
@@ -137,10 +151,10 @@ const UserDashboard: React.FC = () => {
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <Box>
                         <Typography variant="h4" fontWeight="bold">
-                          ₹{(dashboardStats.totalValue / 10000000).toFixed(1)}Cr
+                          {dashboardStats.totalValue}
                         </Typography>
                         <Typography variant="body2">
-                          Total Value
+                          Approved Requests
                         </Typography>
                       </Box>
                       <TrendingUp sx={{ fontSize: 40, opacity: 0.8 }} />
@@ -171,10 +185,10 @@ const UserDashboard: React.FC = () => {
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <Box>
                         <Typography variant="h4" fontWeight="bold">
-                          {dashboardStats.accuracyRate}%
+                          {dashboardStats.accuracyRate}
                         </Typography>
                         <Typography variant="body2">
-                          Accuracy Rate
+                          Rejected Requests
                         </Typography>
                       </Box>
                       <Analytics sx={{ fontSize: 40, opacity: 0.8 }} />

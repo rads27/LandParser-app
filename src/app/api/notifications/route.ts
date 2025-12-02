@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import notificationStore from '@/lib/notificationStore';
 import jwt from 'jsonwebtoken';
+import notificationStore from '@/lib/notificationStore';
 
 function getTokenFromReq(req: NextRequest) {
   const auth = req.headers.get('authorization');
@@ -19,19 +19,14 @@ function verifyToken(token?: string) {
   }
 }
 
-// Combined handler: if the client requests 'text/event-stream', serve SSE;
-// otherwise, respond with JSON for GET. POST supports notification actions.
 export async function GET(req: NextRequest) {
-  const accept = req.headers.get('accept') || '';
+  // User notifications endpoint; requires JWT
+  const token = getTokenFromReq(req);
+  const user = verifyToken(token);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  // If client wants SSE, return a streaming response
+  const accept = req.headers.get('accept') || '';
   if (accept.includes('text/event-stream')) {
-    // Require admin JWT
-    const token = getTokenFromReq(req);
-    const user = verifyToken(token);
-    if (!user || user.role !== 'admin') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
     const { readable, writable } = new TransformStream();
     const writer = writable.getWriter();
     const encoder = new TextEncoder();
@@ -40,57 +35,47 @@ export async function GET(req: NextRequest) {
       try { writer.write(encoder.encode(`data: ${data}\n\n`)); } catch (_) {}
     };
 
-    // initial snapshot
+    // initial snapshot filtered by user
     try {
-      const initial = notificationStore.getNotifications();
+      const initial = notificationStore.getNotifications().filter(n => n.target === 'admin' || n.target === user.email);
       sendEvent(JSON.stringify({ type: 'initial', notifications: initial }));
     } catch (_) {}
 
-    const unsubscribe = notificationStore.subscribe(() => {
+    const unsubscribe = notificationStore.subscribe((list) => {
       try {
-        const latest = notificationStore.getNotifications();
-        sendEvent(JSON.stringify({ type: 'update', notifications: latest }));
+        const filtered = list.filter(n => n.target === 'admin' || n.target === user.email);
+        sendEvent(JSON.stringify({ type: 'update', notifications: filtered }));
       } catch (_) {}
     });
 
-    const pingInterval = setInterval(() => {
-      try { writer.write(encoder.encode(': ping\n\n')); } catch (_) {}
-    }, 20000);
-
+    const pingInterval = setInterval(() => { try { writer.write(encoder.encode(': ping\n\n')); } catch (_) {} }, 20000);
     req.signal.addEventListener('abort', () => {
       clearInterval(pingInterval);
       try { unsubscribe(); } catch (_) {}
       try { writer.close(); } catch (_) {}
     });
 
-    return new Response(readable, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache, no-transform',
-        Connection: 'keep-alive',
-      },
-    });
+    return new Response(readable, { headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' } });
   }
 
-  // Fallback JSON GET: return notifications and unread count
+  // JSON fallback: return notifications for this user
   try {
-    const notifications = notificationStore.getNotifications();
-    const unreadCount = notificationStore.getUnreadCount();
-
-    return NextResponse.json({
-      success: true,
-      data: { notifications, unreadCount }
-    });
-  } catch (error) {
-    console.error('Get notifications error:', error);
+    const list = notificationStore.getNotifications().filter(n => n.target === 'admin' || n.target === user.email);
+    const unread = list.filter(n => !n.read).length;
+    return NextResponse.json({ success: true, data: { notifications: list, unreadCount: unread } });
+  } catch (err) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    const { action, notificationId } = await request.json();
+export async function POST(req: NextRequest) {
+  // Allow marking read/clear actions for authenticated user
+  const token = getTokenFromReq(req);
+  const user = verifyToken(token);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  try {
+    const { action, notificationId } = await req.json();
     switch (action) {
       case 'markRead':
         if (notificationId) notificationStore.markAsRead(notificationId);
@@ -104,10 +89,8 @@ export async function POST(request: NextRequest) {
       default:
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
-
-    return NextResponse.json({ success: true, message: 'Action completed successfully' });
-  } catch (error) {
-    console.error('Notification action error:', error);
+    return NextResponse.json({ success: true });
+  } catch (err) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

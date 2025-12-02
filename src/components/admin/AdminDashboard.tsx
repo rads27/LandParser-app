@@ -89,11 +89,45 @@ const AdminDashboard: React.FC = () => {
     const requestsInterval = setInterval(fetchRequests, 10000);
     const processedInterval = setInterval(fetchProcessedRequests, 30000);
     const statsInterval = setInterval(fetchStats, 30000);
+    // Real-time notifications via Server-Sent Events (pass admin token)
+    let es: EventSource | null = null;
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const url = `/api/admin/notifications?token=${encodeURIComponent(token || '')}`;
+      console.log('AdminDashboard: Opening SSE to', url);
+      es = new EventSource(url);
+      es.onopen = () => console.log('AdminDashboard: SSE connection opened');
+      es.onmessage = (e) => {
+        try {
+          const payload = JSON.parse(e.data);
+          // On updates, refresh requests and optionally show a message
+          if (payload && (payload.type === 'update' || payload.type === 'initial')) {
+            fetchRequests();
+            setMessage('New submission received');
+            // Clear message after short delay
+            setTimeout(() => setMessage(''), 4000);
+          }
+        } catch (err) {
+          // ignore parse errors
+        }
+      };
+      es.onerror = (err) => {
+        console.warn('AdminDashboard: SSE error', err);
+        // If SSE fails, close and fallback to polling
+        if (es) { try { es.close(); } catch(_) {} es = null; }
+      };
+    } catch (err) {
+      console.warn('AdminDashboard: Failed to create EventSource', err);
+      // EventSource not available or connection failed; keep polling
+    }
     
     return () => {
       clearInterval(requestsInterval);
       clearInterval(processedInterval);
       clearInterval(statsInterval);
+      if (es) {
+        try { es.close(); } catch (_) {}
+      }
     };
   }, []);
 

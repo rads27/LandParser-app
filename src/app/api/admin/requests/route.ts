@@ -105,6 +105,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Notify the submitting user about the action
+    try {
+      const userEmail = (updatedSubmission as any).userEmail;
+      if (userEmail) {
+        const actionLabel = status === 'approved' ? 'approved' : 'rejected';
+        const message = `Your encroachment submission (id: ${updatedSubmission.id}) was ${actionLabel}. Admin notes: ${notes || ''}`;
+        // Target notification to the user
+        // Dynamically import to avoid circular issues
+        try {
+          const notif = require('@/lib/notificationStore').default;
+          notif.addNotification(message, status === 'approved' ? 'success' : 'warning', userEmail, { submissionId: updatedSubmission.id });
+        } catch (err) {
+          // fallback: log
+          console.log('Failed to create user notification:', err);
+        }
+      }
+    } catch (err) {
+      console.error('Error sending user notification:', err);
+    }
+
     return NextResponse.json({
       success: true,
       message: `Request ${action}d successfully`,

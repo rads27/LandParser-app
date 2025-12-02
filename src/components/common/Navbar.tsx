@@ -45,16 +45,38 @@ const Navbar: React.FC = () => {
   useEffect(() => {
     if (user?.role === 'admin') {
       fetchNotifications();
-      // Set up polling for new notifications
-      const interval = setInterval(fetchNotifications, 30000); // Every 30 seconds
-      return () => clearInterval(interval);
+      // Try real-time via SSE with token in query string (EventSource can't set headers)
+      let es: EventSource | null = null;
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        es = new EventSource(`/api/admin/notifications?token=${encodeURIComponent(token || '')}`);
+        es.onmessage = (e) => {
+          try {
+            const payload = JSON.parse(e.data);
+            if (payload && (payload.type === 'initial' || payload.type === 'update')) {
+              setNotifications(payload.notifications || []);
+              setUnreadCount((payload.notifications || []).filter((n: any) => !n.read).length);
+            }
+          } catch (err) {}
+        };
+        es.onerror = () => { if (es) { es.close(); es = null; } };
+      } catch (err) {
+        // fallback to polling
+        const interval = setInterval(fetchNotifications, 30000); // Every 30 seconds
+        return () => clearInterval(interval);
+      }
+
+      return () => { if (es) { try { es.close(); } catch(_) {} } };
     }
   }, [user]);
 
   const fetchNotifications = async () => {
     try {
       console.log('Navbar: Fetching notifications...');
-      const response = await fetch('/api/admin/notifications');
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const response = await fetch('/api/admin/notifications', {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
       const data = await response.json();
       console.log('Navbar: Notifications response:', data);
       if (data.success) {
@@ -92,9 +114,10 @@ const Navbar: React.FC = () => {
 
   const markAllAsRead = async () => {
     try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       await fetch('/api/admin/notifications', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: Object.assign({ 'Content-Type': 'application/json' }, token ? { Authorization: `Bearer ${token}` } : {}),
         body: JSON.stringify({ action: 'markAllRead' }),
       });
       fetchNotifications();

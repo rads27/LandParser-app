@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "train:js": "node ./ml/train_price_js.js"
   },
   "dependencies": {
     "@emotion/react": "^11.11.4",
@@ -38,5 +39,8 @@
     "eslint-config-next": "15.5.4",
     "tailwindcss": "^3.4.3",
     "typescript": "^5.4.5"
+  },
+  "optionalDependencies": {
+    "csv-parse": "^5.6.0"
   }
 }

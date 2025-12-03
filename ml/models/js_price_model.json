@@ -1,0 +1,39 @@
+{
+  "featureNames": [
+    "bias",
+    "area_m2",
+    "Land_Type_Non-Agricultural",
+    "Land_Type_Agricultural",
+    "Soil_Type_Black Cotton",
+    "Soil_Type_Laterite",
+    "Soil_Type_Sandy",
+    "Soil_Type_Alluvial",
+    "Soil_Type_Red"
+  ],
+  "coef": [
+    857544.241920731,
+    -0.9734639823119823,
+    406174.80220654403,
+    451369.4547577425,
+    117024.89715137225,
+    220734.2973910546,
+    231117.5172371411,
+    163040.63661525282,
+    125626.88931190834
+  ],
+  "targetCol": "Market_Value",
+  "areaCol": "area_m2",
+  "encoders": {
+    "Land_Type": [
+      "Non-Agricultural",
+      "Agricultural"
+    ],
+    "Soil_Type": [
+      "Black Cotton",
+      "Laterite",
+      "Sandy",
+      "Alluvial",
+      "Red"
+    ]
+  }
+}

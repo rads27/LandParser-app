@@ -218,8 +218,9 @@ const AdminDashboard: React.FC = () => {
         // Remove the request from the list
         setRequests(prev => prev.filter(req => req.id !== requestId));
         setMessage(`Request ${action}d successfully`);
-        // Refresh stats after action
+        // Refresh stats and processed requests after action
         fetchStats();
+        fetchProcessedRequests();
       } else {
         setMessage(`Failed to ${action} request`);
       }

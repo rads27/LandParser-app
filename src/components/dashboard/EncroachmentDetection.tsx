@@ -384,7 +384,14 @@ const EncroachmentDetection: React.FC = () => {
                     size="small"
                     label="Plot Number"
                     value={formData.plotNumber}
-                    onChange={(e) => handleFormChange('plotNumber', e.target.value)}
+                    onChange={(e) => {
+                      // Allow alphanumeric, hyphens, and slashes for plot numbers
+                      const value = e.target.value;
+                      if (value === '' || /^[a-zA-Z0-9\-\/\s]*$/.test(value)) {
+                        handleFormChange('plotNumber', value);
+                      }
+                    }}
+                    placeholder="e.g., 123, A-45, 12/3"
                   />
                 </Grid>
                 <Grid item xs={12} sm={6}>
@@ -403,8 +410,15 @@ const EncroachmentDetection: React.FC = () => {
                     size="small"
                     label="Estimated Area"
                     value={formData.estimatedArea}
-                    onChange={(e) => handleFormChange('estimatedArea', e.target.value)}
-                    placeholder="e.g., 1000 sq ft"
+                    onChange={(e) => {
+                      // Allow numbers, decimals, spaces, and common area units
+                      const value = e.target.value;
+                      if (value === '' || /^[0-9.,\s]*(sq ft|sq m|sqft|sqm|m²|ft²|acres|hectares|m|ft)?$/i.test(value)) {
+                        handleFormChange('estimatedArea', value);
+                      }
+                    }}
+                    placeholder="e.g., 1000 sq ft, 200 sq m"
+                    helperText="Enter area with units (sq ft, sq m, acres, etc.)"
                   />
                 </Grid>
               </Grid>
@@ -436,8 +450,19 @@ const EncroachmentDetection: React.FC = () => {
                     fullWidth
                     size="small"
                     label="Contact Phone"
+                    type="tel"
                     value={formData.contactPhone}
-                    onChange={(e) => handleFormChange('contactPhone', e.target.value)}
+                    onChange={(e) => {
+                      // Allow only numbers, spaces, hyphens, parentheses, and plus sign
+                      const value = e.target.value;
+                      if (value === '' || /^[0-9\s\-\(\)\+]*$/.test(value)) {
+                        handleFormChange('contactPhone', value);
+                      }
+                    }}
+                    placeholder="e.g., +91 98765 43210"
+                    inputProps={{
+                      maxLength: 20
+                    }}
                     required
                   />
                 </Grid>
